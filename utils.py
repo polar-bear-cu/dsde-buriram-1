@@ -26,6 +26,7 @@ def thai_to_arabic(text):
 
 # แปลงข้อความเป็นเลข     
 def parse_number(val):
+    val = str(val)
     if not val:
         return None
     val = val.replace(',', '').strip()
