@@ -1,6 +1,3 @@
 .env*
 !.env.example
 __pycache__
-
-ocr_output/**/*.csv
-ocr_output/**/*.json
