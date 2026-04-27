@@ -257,8 +257,8 @@ def swap_if_party_is_numeric(row):
         return pd.Series({'พรรค': row['คะแนน'], 'คะแนน': party_val})
     return row
 
-# ดึงข้อมูล file
-def load_data(file_name: str, page_num: int):
+# ดึงข้อมูล file ocr
+def load_ocr_data(file_name: str, page_num: int):
     key = f"{file_name}_{page_num}"
     
     base_name = os.path.basename(file_name)
@@ -278,7 +278,31 @@ def load_data(file_name: str, page_num: int):
             "summary": summary
         }
     }
+
+OCR_OUTPUT_CLEAN_DIR = os.path.join(BASE_DIR, "ocr_output_clean")
+
+# ดึงข้อมูล file ocr ที่ clean แล้ว
+def load_ocr_clean_data(file_name: str, page_num: int):
+    key = f"{file_name}_{page_num}"
     
+    base_name = os.path.basename(file_name)
+    dir_name = os.path.dirname(file_name).replace(".pdf", "")
+    
+    output_path = os.path.join(OCR_OUTPUT_CLEAN_DIR, dir_name, f"{base_name}_{page_num}.json")
+    
+    with open(output_path, 'r', encoding='utf-8') as file:
+        data = json.load(file)
+    
+    summary = data.get("summary", {})
+    df = pd.DataFrame(data.get("data", []))
+    
+    return {
+        key: {
+            "df": df,
+            "summary": summary
+        }
+    }
+       
 # =============================
 # Process
 
@@ -287,13 +311,17 @@ def validate_district(summary: dict, df: pd.DataFrame, file_path: str) -> list[d
     total = summary.get("จำนวนบัตรทั้งหมด", 0)
     good = summary.get("บัตรดี", 0)
     bad = summary.get("บัตรเสีย", 0)
-    none_ = summary.get("ไม่เลือกผู้ใด", 0)
+    none = summary.get("ไม่เลือกผู้ใด", 0)
     score_sum = df["คะแนน"].sum() if not df.empty else 0
 
+    if total < 0 or good < 0 or bad < 0 or none < 0:
+        issues.append({"file": file_path, "type": "district", "issue": f"มีค่าติดลบ total={total} good={good} bad={bad} none={none}"})
     if total == 0:
         issues.append({"file": file_path, "type": "district", "issue": "จำนวนบัตรทั้งหมด = 0"})
-    if good + bad + none_ != total:
-        issues.append({"file": file_path, "type": "district", "issue": f"บัตรดี({good}) + บัตรเสีย({bad}) + ไม่เลือกผู้ใด({none_}) = {good+bad+none_} ≠ จำนวนบัตรทั้งหมด({total})"})
+    if good == 0:
+        issues.append({"file": file_path, "type": "district", "issue": "บัตรดี = 0"})
+    if good + bad + none > total:
+        issues.append({"file": file_path, "type": "district", "issue": f"บัตรดี({good}) + บัตรเสีย({bad}) + ไม่เลือกผู้ใด({none}) = {good+bad+none} > จำนวนบัตรทั้งหมด({total})"})
     if not df.empty and score_sum != good:
         issues.append({"file": file_path, "type": "district", "issue": f"sum คะแนนผู้สมัคร({score_sum}) ≠ บัตรดี({good})"})
 
@@ -305,15 +333,19 @@ def validate_partylist(summary: dict, df: pd.DataFrame, file_path: str) -> list[
     total = summary.get("จำนวนบัตรทั้งหมด", 0)
     good = summary.get("บัตรดี", 0)
     bad = summary.get("บัตรเสีย", 0)
-    none_ = summary.get("ไม่เลือกผู้ใด", 0)
+    none = summary.get("ไม่เลือกผู้ใด", 0)
     score_sum = df["คะแนน"].sum() if not df.empty else 0
 
+    if total < 0 or good < 0 or bad < 0 or none < 0:
+        issues.append({"file": file_path, "type": "partylist", "issue": f"มีค่าติดลบ total={total} good={good} bad={bad} none={none}"})
     if total == 0:
         issues.append({"file": file_path, "type": "partylist", "issue": "จำนวนบัตรทั้งหมด = 0"})
-    if good + bad + none_ != total:
-        issues.append({"file": file_path, "type": "partylist", "issue": f"บัตรดี({good}) + บัตรเสีย({bad}) + ไม่เลือกผู้ใด({none_}) = {good+bad+none_} ≠ จำนวนบัตรทั้งหมด({total})"})
+    if good == 0:
+        issues.append({"file": file_path, "type": "partylist", "issue": "บัตรดี = 0"})
+    if good + bad + none > total:
+        issues.append({"file": file_path, "type": "partylist", "issue": f"บัตรดี({good}) + บัตรเสีย({bad}) + ไม่เลือกผู้ใด({none}) = {good+bad+none} > จำนวนบัตรทั้งหมด({total})"})
     if not df.empty and score_sum != good:
-        issues.append({"file": file_path, "type": "partylist", "issue": f"sum คะแนนพรรค({score_sum}) ≠ บัตรดี({good})"})
+        issues.append({"file": file_path, "type": "partylist", "issue": f"sum คะแนนพรรค({score_sum}) != บัตรดี({good})"})
 
     return issues
 
@@ -324,12 +356,16 @@ def validate_referendum(summary: dict, df: pd.DataFrame, file_path: str) -> list
     voted = summary.get("มาใช้สิทธิ", 0)
     score_sum = df["คะแนน"].sum() if not df.empty else 0
 
+    if eligible < 0 or voted < 0:
+        issues.append({"file": file_path, "type": "referendum", "issue": f"มีค่าติดลบ eligible={eligible} voted={voted}"})
     if eligible == 0:
         issues.append({"file": file_path, "type": "referendum", "issue": "ผู้มีสิทธิ = 0"})
+    if voted == 0:
+        issues.append({"file": file_path, "type": "referendum", "issue": "มาใช้สิทธิ = 0"})
     if voted > eligible:
         issues.append({"file": file_path, "type": "referendum", "issue": f"มาใช้สิทธิ({voted}) > ผู้มีสิทธิ({eligible})"})
-    if score_sum > voted:
-        issues.append({"file": file_path, "type": "referendum", "issue": f"sum คะแนน({score_sum}) > มาใช้สิทธิ({voted})"})
+    if score_sum != voted:
+        issues.append({"file": file_path, "type": "referendum", "issue": f"sum คะแนน({score_sum}) != มาใช้สิทธิ({voted})"})
 
     return issues
 
@@ -344,7 +380,7 @@ def run_validation() -> pd.DataFrame:
 
         for page_num in range(1, pages, step):
             file_label = f"{path}_{page_num}"
-            result = load_data(path, page_num)
+            result = load_ocr_clean_data(path, page_num)
             summary = result[f"{path}_{page_num}"]["summary"]
             df = result[f"{path}_{page_num}"]["df"]
 
@@ -358,13 +394,10 @@ def run_validation() -> pd.DataFrame:
     df_issues = pd.DataFrame(all_issues)
 
     print(f"Issues: {len(df_issues)} row(s)")
-    if not df_issues.empty:
-        for t in ["district", "partylist", "referendum"]:
-            sub = df_issues[df_issues["type"] == t]
-            if not sub.empty:
-                print(f"--- {t} ({len(sub)} issues) ---")
-                print(sub[["file", "issue"]].to_string(index=False))
-                print()
-        df_issues.to_csv("validation_issues.csv", index=False, encoding="utf-8-sig")
+    print(f' - District Issues: {len(df_issues[df_issues["type"] == "district"])}')
+    print(f' - Partylist Issues: {len(df_issues[df_issues["type"] == "partylist"])}')
+    print(f' - Referendum Issues: {len(df_issues[df_issues["type"] == "referendum"])}')
+    
+    df_issues.to_csv("validation_issues.csv", index=False, encoding="utf-8-sig")
 
     return df_issues
