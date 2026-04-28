@@ -405,8 +405,8 @@ def run_validation() -> pd.DataFrame:
 
 def parse_path_meta(key: str):
     parts = key.split("/")
-    amphoe = next((p for p in parts if p.startswith("อำเภอ")), "ไม่ทราบ")
-    tambon = next((p for p in parts if p.startswith("ตำบล")), "ไม่ทราบ")
+    amphoe = next((p for p in parts if p.startswith("อำเภอ")), "นอกเขต")
+    tambon = next((p for p in parts if p.startswith("ตำบล")), "นอกเขต")
     return amphoe, tambon
 
 def flatten_district(dfs_list):
