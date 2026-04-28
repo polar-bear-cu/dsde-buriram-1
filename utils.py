@@ -327,7 +327,6 @@ def validate_district(summary: dict, df: pd.DataFrame, file_path: str) -> list[d
 
     return issues
 
-
 def validate_partylist(summary: dict, df: pd.DataFrame, file_path: str) -> list[dict]:
     issues = []
     total = summary.get("จำนวนบัตรทั้งหมด", 0)
@@ -349,23 +348,25 @@ def validate_partylist(summary: dict, df: pd.DataFrame, file_path: str) -> list[
 
     return issues
 
-
 def validate_referendum(summary: dict, df: pd.DataFrame, file_path: str) -> list[dict]:
     issues = []
     eligible = summary.get("ผู้มีสิทธิ", 0)
-    voted = summary.get("มาใช้สิทธิ", 0)
+    voted = summary.get("ผู้มาใช้สิทธิ", 0)
+    bad_voted = summary.get("บัตรเสีย", 0)
     score_sum = df["คะแนน"].sum() if not df.empty else 0
 
-    if eligible < 0 or voted < 0:
-        issues.append({"file": file_path, "type": "referendum", "issue": f"มีค่าติดลบ eligible={eligible} voted={voted}"})
+    if eligible < 0 or voted < 0 or bad_voted < 0:
+        issues.append({"file": file_path, "type": "referendum", "issue": f"มีค่าติดลบ eligible={eligible} voted={voted} bad_voted={bad_voted}"})
     if eligible == 0:
         issues.append({"file": file_path, "type": "referendum", "issue": "ผู้มีสิทธิ = 0"})
     if voted == 0:
         issues.append({"file": file_path, "type": "referendum", "issue": "มาใช้สิทธิ = 0"})
     if voted > eligible:
         issues.append({"file": file_path, "type": "referendum", "issue": f"มาใช้สิทธิ({voted}) > ผู้มีสิทธิ({eligible})"})
-    if score_sum != voted:
-        issues.append({"file": file_path, "type": "referendum", "issue": f"sum คะแนน({score_sum}) != มาใช้สิทธิ({voted})"})
+    if bad_voted > voted:
+        issues.append({"file": file_path, "type": "referendum", "issue": f"บัตรเสีย({bad_voted}) > มาใช้สิทธิ({voted})"})
+    if score_sum != voted - bad_voted:
+        issues.append({"file": file_path, "type": "referendum", "issue": f"sum คะแนน({score_sum}) != มาใช้สิทธิ({voted}) - ทำบัตรเสีย({bad_voted})"})
 
     return issues
 
@@ -398,6 +399,57 @@ def run_validation() -> pd.DataFrame:
     print(f' - Partylist Issues: {len(df_issues[df_issues["type"] == "partylist"])}')
     print(f' - Referendum Issues: {len(df_issues[df_issues["type"] == "referendum"])}')
     
-    df_issues.to_csv("validation_issues.csv", index=False, encoding="utf-8-sig")
+    df_issues.to_csv("02_validation_issues.csv", index=False, encoding="utf-8-sig")
 
     return df_issues
+
+def parse_path_meta(key: str):
+    parts = key.split("/")
+    amphoe = next((p for p in parts if p.startswith("อำเภอ")), "advance")
+    tambon = next((p for p in parts if p.startswith("ตำบล")), "advance")
+    return amphoe, tambon
+
+def flatten_district(dfs_list):
+    rows_scores = []
+    rows_summary = []
+    for d in dfs_list:
+        for key, val in d.items():
+            amphoe, tambon = parse_path_meta(key)
+            summary = val["summary"]
+            df = val["df"]
+            meta = {"unit_key": key, "อำเภอ": amphoe, "ตำบล": tambon}
+            rows_summary.append({**meta, **summary})
+            if not df.empty:
+                for _, row in df.iterrows():
+                    rows_scores.append({**meta, **row.to_dict()})
+    return pd.DataFrame(rows_summary), pd.DataFrame(rows_scores)
+
+def flatten_partylist(dfs_list):
+    rows_scores = []
+    rows_summary = []
+    for d in dfs_list:
+        for key, val in d.items():
+            amphoe, tambon = parse_path_meta(key)
+            summary = val["summary"]
+            df = val["df"]
+            meta = {"unit_key": key, "อำเภอ": amphoe, "ตำบล": tambon}
+            rows_summary.append({**meta, **summary})
+            if not df.empty:
+                for _, row in df.iterrows():
+                    rows_scores.append({**meta, **row.to_dict()})
+    return pd.DataFrame(rows_summary), pd.DataFrame(rows_scores)
+
+def flatten_referendum(dfs_list):
+    rows_scores = []
+    rows_summary = []
+    for d in dfs_list:
+        for key, val in d.items():
+            amphoe, tambon = parse_path_meta(key)
+            summary = val["summary"]
+            df = val["df"]
+            meta = {"unit_key": key, "อำเภอ": amphoe, "ตำบล": tambon}
+            rows_summary.append({**meta, **summary})
+            if not df.empty:
+                for _, row in df.iterrows():
+                    rows_scores.append({**meta, **row.to_dict()})
+    return pd.DataFrame(rows_summary), pd.DataFrame(rows_scores)
