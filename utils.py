@@ -23,7 +23,7 @@ OCR_FILES = [
         "pages": 32
     },
     {
-        "path": "district/ontime/อำเภอเมืองบุรีรัมย์/5ทับ18 ตำบลถลุงเหล็ก",
+        "path": "district/ontime/อำเภอเมืองบุรีรัมย์/ตำบลถลุงเหล็ก",
         "pages": 28
     },
     {
