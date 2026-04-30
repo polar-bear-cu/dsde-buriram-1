@@ -239,7 +239,7 @@ with tab2:
         k1.metric("คะแนนรวม", f"{int(pl['คะแนน'].sum()):,}")
         k2.metric("จำนวนหน่วย", f"{pl_units:,}")
         k3.metric("จำนวนพรรค", str(pl["พรรค"].nunique()))
-        k4.metric("ผู้ชนะ", top_pl_party, f"{top_pl_score:,} คะแนน")
+        k4.metric("ผู้ชนะ", top_pl_party)
 
         st.divider()
 
@@ -410,16 +410,39 @@ with tab3:
         gcol = group_col()
         if gcol in ref.columns:
             st.subheader(f"2. ผลประชามติราย{gcol}")
+            
             ref_grp = ref.groupby([gcol, "รายการ"], as_index=False)["คะแนน"].sum()
-            ref_grp[gcol] = ref_grp[gcol].astype(str)
+            piv_t = ref_grp.pivot_table(index=gcol, columns="รายการ", values="คะแนน", fill_value=0)
+            tbl = piv_t.copy().reset_index()
+            for col in ["เห็นชอบ", "ไม่เห็นชอบ", "ไม่แสดงความคิดเห็น"]:
+                if col not in tbl.columns:
+                    tbl[col] = 0
 
+            tbl["รวม"] = tbl["เห็นชอบ"] + tbl["ไม่เห็นชอบ"] + tbl["ไม่แสดงความคิดเห็น"]
+            tbl["% เห็นชอบ"] = (tbl["เห็นชอบ"] / tbl["รวม"] * 100).round(2)
+            tbl["ผล"] = (tbl["เห็นชอบ"] > tbl["ไม่เห็นชอบ"]).map({True: "เห็นชอบ", False: "ไม่เห็นชอบ"})
+            tbl[gcol] = tbl[gcol].astype(str)
+
+            st.dataframe(
+                tbl[[gcol, "เห็นชอบ", "ไม่เห็นชอบ", "ไม่แสดงความคิดเห็น", "รวม", "% เห็นชอบ", "ผล"]],
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "เห็นชอบ": st.column_config.NumberColumn(format="%d"),
+                    "ไม่เห็นชอบ": st.column_config.NumberColumn(format="%d"),
+                    "ไม่แสดงความคิดเห็น": st.column_config.NumberColumn(format="%d"),
+                    "รวม": st.column_config.NumberColumn(format="%d"),
+                    "% เห็นชอบ": st.column_config.ProgressColumn(format="%.2f%%", min_value=0, max_value=100),
+                },
+            )
+            
+            ref_grp[gcol] = ref_grp[gcol].astype(str)
             fig_t = px.bar(ref_grp, x=gcol, y="คะแนน", color="รายการ",
                            color_discrete_map=REF_COLORS, barmode="stack",
                            title=f"ผลประชามติราย{gcol} (จำนวนคะแนน)")
             fig_t.update_layout(xaxis_tickangle=-45)
             st.plotly_chart(fig_t, use_container_width=True, key="t3_ref_bar")
 
-            piv_t = ref_grp.pivot_table(index=gcol, columns="รายการ", values="คะแนน", fill_value=0)
             piv_t_pct = (piv_t.div(piv_t.sum(axis=1), axis=0).reset_index()
                          .melt(id_vars=gcol, var_name="รายการ", value_name="สัดส่วน"))
             fig_t_pct = px.bar(piv_t_pct, x=gcol, y="สัดส่วน", color="รายการ",
@@ -460,35 +483,8 @@ with tab3:
 
         st.divider()
 
-        # 4. ตารางสรุป
-        if gcol in ref.columns:
-            st.subheader(f"4. ตารางสรุปผลประชามติราย{gcol}")
-            ref_tbl = (ref.groupby([gcol, "รายการ"])["คะแนน"].sum()
-                       .unstack(fill_value=0).reset_index())
-            ref_tbl[gcol] = ref_tbl[gcol].astype(str)
-            for col in ["เห็นชอบ", "ไม่เห็นชอบ", "ไม่แสดงความคิดเห็น"]:
-                if col not in ref_tbl.columns:
-                    ref_tbl[col] = 0
-            ref_tbl["รวม"]       = ref_tbl["เห็นชอบ"] + ref_tbl["ไม่เห็นชอบ"] + ref_tbl["ไม่แสดงความคิดเห็น"]
-            ref_tbl["% เห็นชอบ"] = (ref_tbl["เห็นชอบ"] / ref_tbl["รวม"] * 100).round(2)
-            ref_tbl["ผล"]         = (ref_tbl["เห็นชอบ"] > ref_tbl["ไม่เห็นชอบ"]).map({True: "เห็นชอบ", False: "ไม่เห็นชอบ"})
-
-            st.dataframe(
-                ref_tbl[[gcol, "เห็นชอบ", "ไม่เห็นชอบ", "ไม่แสดงความคิดเห็น", "รวม", "% เห็นชอบ", "ผล"]],
-                use_container_width=True, hide_index=True,
-                column_config={
-                    "เห็นชอบ":            st.column_config.NumberColumn(format="%d"),
-                    "ไม่เห็นชอบ":         st.column_config.NumberColumn(format="%d"),
-                    "ไม่แสดงความคิดเห็น": st.column_config.NumberColumn(format="%d"),
-                    "รวม":                st.column_config.NumberColumn(format="%d"),
-                    "% เห็นชอบ":         st.column_config.ProgressColumn(format="%.2f%%", min_value=0, max_value=100),
-                },
-            )
-
-        st.divider()
-
-        # 5. นอกเขต vs ในเขต 
-        st.subheader("5. เปรียบเทียบ นอกเขต vs ในเขต")
+        # 4. นอกเขต vs ในเขต 
+        st.subheader("4. เปรียบเทียบ นอกเขต vs ในเขต")
         ref_in_zone = ref.copy()
         ref_in_zone["ประเภท"] = "ในเขต"
         ref_nok["ประเภท"] = "นอกเขต"
