@@ -425,7 +425,7 @@ def flatten_district(dfs_list):
                 unit = str(int(unit) // OCR_STEPS["district"] + 1)
             else :
                 tambon = tambon
-                unit = "ไม่ทราบ"
+                unit = key.split("_")[-1]
             meta = {"unit_key": key, "อำเภอ": amphoe, "ตำบล": tambon, "หน่วย": unit}
             rows_summary.append({**meta, **summary})
             if not df.empty:
@@ -446,7 +446,7 @@ def flatten_partylist(dfs_list):
                 unit = str(int(unit) // OCR_STEPS["partylist"] + 1)
             else :
                 tambon = tambon
-                unit = "ไม่ทราบ"
+                unit = key.split("_")[-1]
             meta = {"unit_key": key, "อำเภอ": amphoe, "ตำบล": tambon, "หน่วย": unit}
             rows_summary.append({**meta, **summary})
             if not df.empty:
@@ -467,7 +467,7 @@ def flatten_referendum(dfs_list):
                 unit = str(int(unit) // 2 + 1)
             else :
                 tambon = tambon
-                unit = "ไม่ทราบ"
+                unit = key.split("_")[-1]
             meta = {"unit_key": key, "อำเภอ": amphoe, "ตำบล": tambon, "หน่วย": unit}
             rows_summary.append({**meta, **summary})
             if not df.empty:

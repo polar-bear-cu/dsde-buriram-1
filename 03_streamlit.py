@@ -223,7 +223,6 @@ with tab1:
                         fig_l.update_layout(xaxis_tickformat=".0%", height=300)
                         st.plotly_chart(fig_l, use_container_width=True, key=f"t1_weak_{i}")
 
-
 with tab2:
     if pl.empty:
         st.info("ไม่มีข้อมูล กรุณาเลือกตำบลในแถบด้านซ้าย")
@@ -231,134 +230,146 @@ with tab2:
         tambon_label = selected_tambons[0] if is_single_tambon() else f"{selected_amphoe} ({len(selected_tambons)} ตำบล)"
         st.caption(f"แสดงข้อมูล: {tambon_label}")
 
-        top_pl_party = pl.groupby("พรรค")["คะแนน"].sum().idxmax()
-        top_pl_score = int(pl.groupby("พรรค")["คะแนน"].sum().max())
-        pl_units = pl["unit_key"].nunique() if "unit_key" in pl.columns else pl["หน่วย"].nunique()
+        total_parties = pl["พรรค"].nunique()
+
+        top_n_party = st.number_input(
+            "จำนวนพรรคที่ต้องการแสดง",
+            min_value=1,
+            max_value=int(total_parties),
+            value=min(5, total_parties),
+            step=1
+        )
+            
+        top_parties = (
+            pl.groupby("พรรค")["คะแนน"]
+            .sum()
+            .sort_values(ascending=False)
+            .head(top_n_party)
+            .index.tolist()
+        )
+
+        pl_filtered = pl[pl["พรรค"].isin(top_parties)].copy()
+
+        top_pl_party = pl_filtered.groupby("พรรค")["คะแนน"].sum().idxmax()
+        pl_units = pl_filtered["unit_key"].nunique() if "unit_key" in pl_filtered.columns else pl_filtered["หน่วย"].nunique()
 
         k1, k2, k3, k4 = st.columns([1, 1, 1, 3])
-        k1.metric("คะแนนรวม", f"{int(pl['คะแนน'].sum()):,}")
+        k1.metric("คะแนนรวม", f"{int(pl_filtered['คะแนน'].sum()):,}")
         k2.metric("จำนวนหน่วย", f"{pl_units:,}")
-        k3.metric("จำนวนพรรค", str(pl["พรรค"].nunique()))
+        k3.metric("จำนวนพรรค", str(pl_filtered["พรรค"].nunique()))
         k4.metric("ผู้ชนะ", top_pl_party)
 
         st.divider()
 
         # 1. คะแนนรวมแต่ละพรรค
         st.subheader("1. คะแนนรวมแต่ละพรรค")
-        p1 = pl.groupby("พรรค")["คะแนน"].sum().sort_values(ascending=False).reset_index()
+        p1 = pl_filtered.groupby("พรรค")["คะแนน"].sum().sort_values(ascending=False).reset_index()
         p1["% คะแนน"] = (p1["คะแนน"] / p1["คะแนน"].sum() * 100).round(2)
+
         c1, c2 = st.columns([1, 2])
         with c1:
-            st.dataframe(p1, use_container_width=True, hide_index=True,
-                column_config={"คะแนน": st.column_config.NumberColumn(format="%d"),
-                               "% คะแนน": st.column_config.ProgressColumn(format="%.2f%%", min_value=0, max_value=100)})
+            st.dataframe(p1, use_container_width=True, hide_index=True)
         with c2:
-            fig7 = px.bar(p1.sort_values("คะแนน"), x="คะแนน", y="พรรค", orientation="h",
-                          color="พรรค", text="คะแนน", title="คะแนนรวมแต่ละพรรค (บัญชีรายชื่อ)", labels={"พรรค": ""})
+            fig7 = px.bar(p1.sort_values("คะแนน", ascending=False), x="คะแนน", y="พรรค", orientation="h",
+                          color="พรรค", text="คะแนน")
             fig7.update_traces(texttemplate="%{text:,}", textposition="outside")
-            fig7.update_layout(showlegend=False, height=max(300, len(p1) * 40))
-            st.plotly_chart(fig7, use_container_width=True, key="t2_party_total")
+            st.plotly_chart(fig7, use_container_width=True)
 
         st.divider()
 
         # 2. จำนวนหน่วยที่ชนะ
         st.subheader("2. จำนวนหน่วยที่แต่ละพรรคชนะ")
-        if "หน่วย" in pl.columns:
-            wu = pl.loc[pl.groupby("หน่วย")["คะแนน"].idxmax()]
+        if "หน่วย" in pl_filtered.columns:
+            wu = pl_filtered.loc[pl_filtered.groupby("หน่วย")["คะแนน"].idxmax()]
             wc = wu["พรรค"].value_counts().reset_index()
             wc.columns = ["พรรค", "จำนวนหน่วย"]
+
             c1, c2 = st.columns([1, 2])
             with c1:
                 st.dataframe(wc, use_container_width=True, hide_index=True)
             with c2:
-                fig8 = px.bar(wc.sort_values("จำนวนหน่วย"), x="จำนวนหน่วย", y="พรรค", orientation="h",
-                              color="พรรค", text="จำนวนหน่วย", title="จำนวนหน่วยที่แต่ละพรรคชนะ", labels={"พรรค": ""})
+                fig8 = px.bar(wc.sort_values("จำนวนหน่วย", ascending=False), x="จำนวนหน่วย", y="พรรค",
+                              orientation="h", color="พรรค", text="จำนวนหน่วย")
                 fig8.update_traces(textposition="outside")
-                fig8.update_layout(showlegend=False, height=max(300, len(wc) * 40))
-                st.plotly_chart(fig8, use_container_width=True, key="t2_unit_win")
+                st.plotly_chart(fig8, use_container_width=True)
 
         st.divider()
 
         # 3. พรรคที่ชนะราย (หน่วย หรือ ตำบล)
         gcol = group_col()
-        if gcol in pl.columns:
+        if gcol in pl_filtered.columns:
             st.subheader(f"3. พรรคที่ชนะในแต่ละ{gcol}")
-            wt = pl.loc[pl.groupby(gcol)["คะแนน"].idxmax(), [gcol, "พรรค", "คะแนน"]].sort_values(gcol)
-            wt[gcol] = wt[gcol].astype(str)
+            wt = pl_filtered.loc[pl_filtered.groupby(gcol)["คะแนน"].idxmax(), [gcol, "พรรค", "คะแนน"]]
             st.dataframe(wt.reset_index(drop=True), use_container_width=True, hide_index=True)
 
         st.divider()
 
         # 4. การกระจายคะแนน
-        if gcol in pl.columns:
+        if gcol in pl_filtered.columns:
             st.subheader(f"4. การกระจายคะแนนพรรคในแต่ละ{gcol}")
-            p4 = pl.groupby([gcol, "พรรค"], as_index=False)["คะแนน"].sum()
-            p4[gcol] = p4[gcol].astype(str)
+            p4 = pl_filtered.groupby([gcol, "พรรค"], as_index=False)["คะแนน"].sum()
+
             c1, c2 = st.columns(2)
             with c1:
-                fig9 = px.bar(p4, x=gcol, y="คะแนน", color="พรรค", barmode="group",
-                              title=f"คะแนนบัญชีรายชื่อราย{gcol}")
-                fig9.update_layout(xaxis_tickangle=-45)
-                st.plotly_chart(fig9, use_container_width=True, key="t2_dist_bar")
+                fig9 = px.bar(p4, x=gcol, y="คะแนน", color="พรรค", barmode="group")
+                st.plotly_chart(fig9, use_container_width=True)
             with c2:
-                piv_pl = p4.pivot_table(index=gcol, columns="พรรค", values="คะแนน", fill_value=0)
-                piv_pl_pct = (piv_pl.div(piv_pl.sum(axis=1), axis=0).reset_index()
-                              .melt(id_vars=gcol, var_name="พรรค", value_name="สัดส่วน"))
-                fig10 = px.density_heatmap(piv_pl_pct, x="พรรค", y=gcol, z="สัดส่วน",
-                                           color_continuous_scale="Reds", title=f"Heatmap พรรค x {gcol} (%)")
-                st.plotly_chart(fig10, use_container_width=True, key="t2_dist_heat")
+                piv = p4.pivot_table(index=gcol, columns="พรรค", values="คะแนน", fill_value=0)
+                piv_pct = (piv.div(piv.sum(axis=1), axis=0).reset_index()
+                           .melt(id_vars=gcol, var_name="พรรค", value_name="สัดส่วน"))
+                fig10 = px.density_heatmap(piv_pct, x="พรรค", y=gcol, z="สัดส่วน")
+                st.plotly_chart(fig10, use_container_width=True)
 
         st.divider()
 
         # 5. ฐานเสียงแข็ง / พื้นที่ต้องพัฒนา
-        if "unit_key" in pl.columns:
-            st.subheader("5. ฐานเสียงแข็ง และพื้นที่ที่ต้องพัฒนาของแต่ละพรรค (บัญชีรายชื่อ)")
+        c1, c2 = st.columns(2)
+        with c1:
+            selected_party_pl = st.selectbox(
+                "เลือกพรรค",
+                options=["ทั้งหมด"] + sorted(pl_filtered["พรรค"].dropna().unique().tolist())
+            )
+        with c2:
+            TOP_UNIT = st.number_input("จำนวนหน่วยที่แสดง", 1, 20, 5)
 
+        st.subheader(f"5. ฐานเสียงแข็ง / พื้นที่ต้องพัฒนา")
+
+        if "unit_key" in pl_filtered.columns:
             def calc_margin_pl(group):
                 g = group.sort_values("คะแนน", ascending=False).reset_index(drop=True)
                 if len(g) < 2:
-                    return pd.Series({"winner": g.loc[0, "พรรค"], "winner_score": g.loc[0, "คะแนน"],
-                                      "margin": g.loc[0, "คะแนน"], "margin_pct": 1.0})
+                    return pd.Series({"winner": g.loc[0, "พรรค"], "margin_pct": 1.0})
                 margin = g.loc[0, "คะแนน"] - g.loc[1, "คะแนน"]
-                return pd.Series({"winner": g.loc[0, "พรรค"], "winner_score": g.loc[0, "คะแนน"],
-                                  "margin": margin, "margin_pct": margin / g["คะแนน"].sum()})
+                return pd.Series({"winner": g.loc[0, "พรรค"], "margin_pct": margin / g["คะแนน"].sum()})
 
-            merge_cols_pl = [c for c in ["unit_key", "หน่วย", "ตำบล", "อำเภอ"] if c in pl.columns]
-            um_pl = (pl.groupby("unit_key").apply(calc_margin_pl, include_groups=False).reset_index()
-                     .merge(pl[merge_cols_pl].drop_duplicates(), on="unit_key"))
+            merge_cols = [c for c in ["unit_key", "หน่วย", "ตำบล"] if c in pl_filtered.columns]
 
-            TOP_UNIT = 5
-            for i, party in enumerate(pl["พรรค"].dropna().unique().tolist()):
-                own  = um_pl[um_pl["winner"] == party].sort_values("margin_pct", ascending=False).head(TOP_UNIT)
-                lost = um_pl[um_pl["winner"] != party].sort_values("margin_pct", ascending=False).head(TOP_UNIT)
+            um = (pl_filtered.groupby("unit_key")
+                .apply(calc_margin_pl, include_groups=False)
+                .reset_index()
+                .merge(pl_filtered[merge_cols].drop_duplicates(), on="unit_key"))
+
+            parties = pl_filtered["พรรค"].dropna().unique().tolist()
+            if selected_party_pl != "ทั้งหมด":
+                parties = [selected_party_pl]
+
+            for i, party in enumerate(parties):
+                own = um[um["winner"] == party].sort_values("margin_pct", ascending=False).head(TOP_UNIT)
+                lost = um[um["winner"] != party].sort_values("margin_pct", ascending=False).head(TOP_UNIT)
                 if own.empty and lost.empty:
                     continue
-                st.markdown(f"**พรรค {party}**")
+
+                st.markdown(f"พรรค {party}")
                 c1, c2 = st.columns(2)
                 with c1:
-                    if not own.empty:
-                        own = own.dropna(subset=["หน่วย"]).copy()
-                        own["label"] = own["ตำบล"].astype(str) + " หน่วย " + own["หน่วย"].astype(str) if not is_single_tambon() else "หน่วย " + own["หน่วย"].astype(str)
-                        fig_o = px.bar(own.sort_values("margin_pct"), x="margin_pct", y="label",
-                                       orientation="h", title=f"Top {TOP_UNIT} ฐานเสียงแข็ง",
-                                       labels={"margin_pct": "Margin", "label": ""},
-                                       color_discrete_sequence=["#457b9d"])
-                        fig_o.update_traces(texttemplate="%{x:.1%}", textposition="outside")
-                        fig_o.update_layout(xaxis_tickformat=".0%", height=300)
-                        st.plotly_chart(fig_o, use_container_width=True, key=f"t2_strong_{i}")
+                    fig_o = px.bar(own, x="margin_pct", y="หน่วย", orientation="h",
+                                title="ฐานเสียงแข็ง")
+                    st.plotly_chart(fig_o, use_container_width=True, key=f"s{i}")
                 with c2:
-                    if not lost.empty:
-                        lost = lost.dropna(subset=["หน่วย"]).copy()
-                        lost["label"] = lost["ตำบล"].astype(str) + " หน่วย " + lost["หน่วย"].astype(str) if not is_single_tambon() else "หน่วย " + lost["หน่วย"].astype(str)
-                        fig_l = px.bar(lost.sort_values("margin_pct"), x="margin_pct", y="label",
-                                       orientation="h", title=f"Top {TOP_UNIT} พื้นที่แพ้ห่างที่สุด",
-                                       labels={"margin_pct": "Margin", "label": ""},
-                                       color_discrete_sequence=["#e63946"])
-                        fig_l.update_traces(texttemplate="%{x:.1%}", textposition="outside")
-                        fig_l.update_layout(xaxis_tickformat=".0%", height=300)
-                        st.plotly_chart(fig_l, use_container_width=True, key=f"t2_weak_{i}")
-
-
+                    fig_l = px.bar(lost, x="margin_pct", y="หน่วย", orientation="h",
+                                title="พื้นที่ต้องพัฒนา")
+                    st.plotly_chart(fig_l, use_container_width=True, key=f"l{i}")
+                    
 with tab3:
     if ref.empty:
         st.info("ไม่มีข้อมูล กรุณาเลือกตำบลในแถบด้านซ้าย")
