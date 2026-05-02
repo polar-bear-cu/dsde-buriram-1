@@ -405,8 +405,8 @@ def run_validation() -> pd.DataFrame:
 
 def parse_path_meta(key: str):
     parts = key.split("/")
-    amphoe = next((p for p in parts if p.startswith("อำเภอ")), "advance")
-    tambon = next((p for p in parts if p.startswith("ตำบล")), "advance")
+    amphoe = next((p for p in parts if p.startswith("อำเภอ")), "นอกเขต")
+    tambon = next((p for p in parts if p.startswith("ตำบล")), "นอกเขต")
     return amphoe, tambon
 
 def flatten_district(dfs_list):
@@ -417,7 +417,13 @@ def flatten_district(dfs_list):
             amphoe, tambon = parse_path_meta(key)
             summary = val["summary"]
             df = val["df"]
-            meta = {"unit_key": key, "อำเภอ": amphoe, "ตำบล": tambon}
+            if "_" in tambon:
+                tambon, unit = tambon.split("_")
+                unit = str(int(unit) // OCR_STEPS["district"] + 1)
+            else :
+                tambon = tambon
+                unit = "ไม่ทราบ"
+            meta = {"unit_key": key, "อำเภอ": amphoe, "ตำบล": tambon, "หน่วย": unit}
             rows_summary.append({**meta, **summary})
             if not df.empty:
                 for _, row in df.iterrows():
@@ -432,7 +438,13 @@ def flatten_partylist(dfs_list):
             amphoe, tambon = parse_path_meta(key)
             summary = val["summary"]
             df = val["df"]
-            meta = {"unit_key": key, "อำเภอ": amphoe, "ตำบล": tambon}
+            if "_" in tambon:
+                tambon, unit = tambon.split("_")
+                unit = str(int(unit) // OCR_STEPS["partylist"] + 1)
+            else :
+                tambon = tambon
+                unit = "ไม่ทราบ"
+            meta = {"unit_key": key, "อำเภอ": amphoe, "ตำบล": tambon, "หน่วย": unit}
             rows_summary.append({**meta, **summary})
             if not df.empty:
                 for _, row in df.iterrows():
@@ -447,7 +459,13 @@ def flatten_referendum(dfs_list):
             amphoe, tambon = parse_path_meta(key)
             summary = val["summary"]
             df = val["df"]
-            meta = {"unit_key": key, "อำเภอ": amphoe, "ตำบล": tambon}
+            if "_" in tambon:
+                tambon, unit = tambon.split("_")
+                unit = str(int(unit) // 2 + 1)
+            else :
+                tambon = tambon
+                unit = "ไม่ทราบ"
+            meta = {"unit_key": key, "อำเภอ": amphoe, "ตำบล": tambon, "หน่วย": unit}
             rows_summary.append({**meta, **summary})
             if not df.empty:
                 for _, row in df.iterrows():
