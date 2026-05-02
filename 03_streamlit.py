@@ -86,7 +86,7 @@ with tab1:
         total_parties_ds = ds["พรรค"].nunique()
 
         top_n_party_ds = st.number_input(
-            "จำนวนพรรคที่ต้องการแสดง",
+            f"จำนวนพรรคที่ต้องการแสดง (สูงสุด {total_parties_ds})",
             min_value=1,
             max_value=int(total_parties_ds),
             value=min(5, total_parties_ds),
@@ -215,7 +215,7 @@ with tab1:
             )
         with c2:
             TOP_UNIT_DS = st.number_input(
-                "จำนวนหน่วยที่แสดง",
+                f"จำนวนหน่วยที่แสดง (สูงสุด 20)",
                 min_value=1, max_value=20, value=5,
                 key="top_unit_ds"
             )
@@ -282,7 +282,7 @@ with tab2:
         total_parties = pl["พรรค"].nunique()
 
         top_n_party = st.number_input(
-            "จำนวนพรรคที่ต้องการแสดง",
+            f"จำนวนพรรคที่ต้องการแสดง (สูงสุด {total_parties})",
             min_value=1,
             max_value=int(total_parties),
             value=min(5, total_parties),
@@ -379,7 +379,7 @@ with tab2:
                 options=["ทั้งหมด"] + sorted(pl_filtered["พรรค"].dropna().unique().tolist())
             )
         with c2:
-            TOP_UNIT = st.number_input("จำนวนหน่วยที่แสดง", 1, 20, 5)
+            TOP_UNIT = st.number_input(f"จำนวนหน่วยที่แสดง (สูงสุด 20)", 1, 20, 5)
 
         st.subheader(f"5. ฐานเสียงแข็ง / พื้นที่ต้องพัฒนา")
 
