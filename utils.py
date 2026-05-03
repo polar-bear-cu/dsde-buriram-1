@@ -210,7 +210,7 @@ def get_safe_pdf_path(file_name):
     safe_path = os.path.join(tmp_dir, "file.pdf")
     
     shutil.copy(src, safe_path)
-    return safe_path
+    return safe_path, tmp_dir
 
 # เก็บผลลัพธ์การ ocr
 OCR_OUTPUT_DIR = os.path.join(BASE_DIR, "ocr_output")
