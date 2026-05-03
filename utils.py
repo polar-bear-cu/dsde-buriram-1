@@ -370,7 +370,7 @@ def validate_referendum(summary: dict, df: pd.DataFrame, file_path: str) -> list
 
     return issues
 
-def run_validation() -> pd.DataFrame:
+def run_validation(load_ocr_method) -> pd.DataFrame:
     all_issues = []
 
     for file_config in OCR_FILES:
@@ -381,7 +381,7 @@ def run_validation() -> pd.DataFrame:
 
         for page_num in range(1, pages, step):
             file_label = f"{path}_{page_num}"
-            result = load_ocr_clean_data(path, page_num)
+            result = load_ocr_method(path, page_num)
             summary = result[f"{path}_{page_num}"]["summary"]
             df = result[f"{path}_{page_num}"]["df"]
 
@@ -399,7 +399,10 @@ def run_validation() -> pd.DataFrame:
     print(f' - Partylist Issues: {len(df_issues[df_issues["type"] == "partylist"])}')
     print(f' - Referendum Issues: {len(df_issues[df_issues["type"] == "referendum"])}')
     
-    df_issues.to_csv("02_validation_issues.csv", index=False, encoding="utf-8-sig")
+    if load_ocr_method == load_ocr_data:
+        df_issues.to_csv("02_validation_issues.csv", index=False, encoding="utf-8-sig")
+    elif load_ocr_method == load_ocr_clean_data:
+        df_issues.to_csv("02_validation_issues_clean.csv", index=False, encoding="utf-8-sig")
 
     return df_issues
 
@@ -422,7 +425,7 @@ def flatten_district(dfs_list):
                 unit = str(int(unit) // OCR_STEPS["district"] + 1)
             else :
                 tambon = tambon
-                unit = "ไม่ทราบ"
+                unit = key.split("_")[-1]
             meta = {"unit_key": key, "อำเภอ": amphoe, "ตำบล": tambon, "หน่วย": unit}
             rows_summary.append({**meta, **summary})
             if not df.empty:
@@ -443,7 +446,7 @@ def flatten_partylist(dfs_list):
                 unit = str(int(unit) // OCR_STEPS["partylist"] + 1)
             else :
                 tambon = tambon
-                unit = "ไม่ทราบ"
+                unit = key.split("_")[-1]
             meta = {"unit_key": key, "อำเภอ": amphoe, "ตำบล": tambon, "หน่วย": unit}
             rows_summary.append({**meta, **summary})
             if not df.empty:
@@ -464,7 +467,7 @@ def flatten_referendum(dfs_list):
                 unit = str(int(unit) // 2 + 1)
             else :
                 tambon = tambon
-                unit = "ไม่ทราบ"
+                unit = key.split("_")[-1]
             meta = {"unit_key": key, "อำเภอ": amphoe, "ตำบล": tambon, "หน่วย": unit}
             rows_summary.append({**meta, **summary})
             if not df.empty:

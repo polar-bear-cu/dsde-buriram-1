@@ -40,10 +40,11 @@ dsde-buriram-1/
 ├── 01_ocr_referendum.ipynb         # ไฟล์สำหรับการทำ ocr กลุ่มการลงประชามติ
 ├── 02_process.ipynb                # ไฟล์สำหรับการวิเคราะห์ข้อมูล
 ├── 02_validation_issues.csv        # ไฟล์สำหรับตรวจสอบความไม่สอดคล้องของข้อมูล
+├── 02_validation_issues_clean.csv  # ไฟล์สำหรับแสดงความไม่สอดคล้องของข้อมูลหลังจากการแก้ไขข้อมูล
 ├── utils.py                        # ไฟล์รวม function ต่างๆ
 ```
 
-Note: Latest Update - 28/04/2026 22:13
+Note: Latest Update - 02/05/2026 06:00
 
 ## Stack
 
