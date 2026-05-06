@@ -44,10 +44,11 @@ dsde-buriram-1/
 ├── 02_validation_issues_clean.csv  # ไฟล์สำหรับแสดงความไม่สอดคล้องของข้อมูลหลังจากการแก้ไขข้อมูล
 ├── 03_streamlit_run.ipynb          # ไฟล์สำหรับรัน 03_streamlit.py
 ├── 03_streamlit.py                 # ไฟล์สำหรับแสดง Dashboard
+├── requirements.txt                # ไฟล์สำหรับ download python lib for production
 ├── utils.py                        # ไฟล์รวม function ต่างๆ
 ```
 
-Note: Latest Update - 03/05/2026 18:10
+Note: Latest Update - 07/05/2026 05:01
 
 ## Stack
 
