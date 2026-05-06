@@ -48,8 +48,6 @@ dsde-buriram-1/
 ├── utils.py                        # ไฟล์รวม function ต่างๆ
 ```
 
-Note: Latest Update - 07/05/2026 05:01
-
 ## Stack
 
 - **Typhoon OCR**
@@ -126,3 +124,6 @@ Note: Latest Update - 07/05/2026 05:01
   ]
 }
 ```
+
+## Streamlit Production (Dashboard)
+[Click Here](https://polar-bear-cu-dsde-buriram-1.streamlit.app/)
