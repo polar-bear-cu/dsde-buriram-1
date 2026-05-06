@@ -544,14 +544,14 @@ with tab3:
         st.divider()
 
         # 4. นอกเขต vs ในเขต 
-        st.subheader("4. เปรียบเทียบ นอกเขต vs ในเขต")
+        st.subheader("4. เปรียบเทียบตำบลที่เลือก vs นอกเขต")
         ref_in_zone = ref.copy()
-        ref_in_zone["ประเภท"] = "ในเขต"
+        ref_in_zone["ประเภท"] = "ตำบลที่เลือก"
         ref_nok["ประเภท"] = "นอกเขต"
         cmp_df = pd.concat([ref_in_zone, ref_nok])
         cmp = cmp_df.groupby(["ประเภท", "รายการ"])["คะแนน"].sum().reset_index()
         fig_cmp = px.bar(cmp, x="ประเภท", y="คะแนน", color="รายการ",
                          color_discrete_map=REF_COLORS, barmode="group",
-                         title="เปรียบเทียบผลประชามติ นอกเขต vs ในเขต", text="คะแนน")
+                         title="เปรียบเทียบผลประชามติตำบลที่เลือก vs นอกเขต", text="คะแนน")
         fig_cmp.update_traces(texttemplate="%{text:,}", textposition="outside")
         st.plotly_chart(fig_cmp, use_container_width=True, key="t3_cmp")
